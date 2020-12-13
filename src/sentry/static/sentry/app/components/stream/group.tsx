@@ -53,13 +53,13 @@ const defaultProps = {
   canSelect: true,
   withChart: true,
   useFilteredStats: false,
+  isReprocessingQuery: false,
 };
 
 type Props = {
   id: string;
   selection: GlobalSelection;
   organization: Organization;
-  isReprocessingQuery: boolean;
   query?: string;
   hasGuideAnchor?: boolean;
   memberList?: User[];

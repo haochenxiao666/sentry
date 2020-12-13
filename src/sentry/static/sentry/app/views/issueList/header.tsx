@@ -8,6 +8,8 @@ import {IconPause, IconPlay} from 'app/icons';
 import {t} from 'app/locale';
 import space from 'app/styles/space';
 
+import {Query} from './utils';
+
 type Props = {
   query: string;
   queryCount: number;
@@ -18,9 +20,10 @@ type Props = {
 };
 
 const queries = [
-  ['is:needs_review is:unresolved', t('Needs Review')],
-  ['is:unresolved', t('Unresolved')],
-  ['is:ignored', t('Ignored')],
+  [Query.NEEDS_REVIEW, t('Needs Review')],
+  [Query.UNRESOLVED, t('Unresolved')],
+  [Query.IGNORED, t('Ignored')],
+  [Query.REPROCESSING, t('Reprocessing')],
 ];
 
 function IssueListHeader({
@@ -31,8 +34,6 @@ function IssueListHeader({
   onTabChange,
   onRealtimeChange,
 }: Props) {
-  const count = <StyledQueryCount count={queryCount} max={queryMaxCount} />;
-
   return (
     <React.Fragment>
       <BorderlessHeader>
@@ -54,7 +55,10 @@ function IssueListHeader({
           {queries.map(([tabQuery, queryName]) => (
             <li key={tabQuery} className={query === tabQuery ? 'active' : ''}>
               <a onClick={() => onTabChange(tabQuery)}>
-                {queryName} {query === tabQuery && count}
+                {queryName}{' '}
+                {query === tabQuery && (
+                  <StyledQueryCount count={queryCount} max={queryMaxCount} />
+                )}
               </a>
             </li>
           ))}

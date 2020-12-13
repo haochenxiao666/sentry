@@ -57,6 +57,7 @@ import IssueListFilters from './filters';
 import IssueListHeader from './header';
 import NoGroupsHandler from './noGroupsHandler';
 import IssueListSidebar from './sidebar';
+import {Query} from './utils';
 
 const MAX_ITEMS = 25;
 const DEFAULT_SORT = 'date';
@@ -592,8 +593,10 @@ class IssueListOverview extends React.Component<Props, State> {
   renderGroupNodes = (ids: string[], groupStatsPeriod: string) => {
     const topIssue = ids[0];
     const {memberList} = this.state;
+    const query = this.getQuery();
+    const isReprocessingQuery = query === Query.REPROCESSING;
 
-    const groupNodes = ids.map(id => {
+    return ids.map(id => {
       const hasGuideAnchor = id === topIssue;
       const group = GroupStore.get(id);
       let members: Member['user'][] | undefined;
@@ -606,14 +609,14 @@ class IssueListOverview extends React.Component<Props, State> {
           key={id}
           id={id}
           statsPeriod={groupStatsPeriod}
-          query={this.getQuery()}
+          query={query}
           hasGuideAnchor={hasGuideAnchor}
           memberList={members}
+          isReprocessingQuery={isReprocessingQuery}
           useFilteredStats
         />
       );
     });
-    return <PanelBody>{groupNodes}</PanelBody>;
   };
 
   renderLoading(): React.ReactNode {
@@ -621,25 +624,35 @@ class IssueListOverview extends React.Component<Props, State> {
   }
 
   renderStreamBody(): React.ReactNode {
-    let body: React.ReactNode;
-    if (this.state.issuesLoading) {
-      body = this.renderLoading();
-    } else if (this.state.error) {
-      body = <LoadingError message={this.state.error} onRetry={this.fetchData} />;
-    } else if (this.state.groupIds.length > 0) {
-      body = this.renderGroupNodes(this.state.groupIds, this.getGroupStatsPeriod());
-    } else {
-      body = (
-        <NoGroupsHandler
-          api={this.props.api}
-          organization={this.props.organization}
-          query={this.getQuery()}
-          selectedProjectIds={this.props.selection.projects}
-          groupIds={this.state.groupIds}
-        />
+    const {issuesLoading, error, groupIds} = this.state;
+
+    if (issuesLoading) {
+      return this.renderLoading();
+    }
+
+    if (error) {
+      return <LoadingError message={error} onRetry={this.fetchData} />;
+    }
+
+    if (groupIds.length > 0) {
+      return (
+        <PanelBody>
+          {this.renderGroupNodes(groupIds, this.getGroupStatsPeriod())}
+        </PanelBody>
       );
     }
-    return body;
+
+    const {api, organization, selection} = this.props;
+
+    return (
+      <NoGroupsHandler
+        api={api}
+        organization={organization}
+        query={this.getQuery()}
+        selectedProjectIds={selection.projects}
+        groupIds={groupIds}
+      />
+    );
   }
 
   fetchSavedSearches = () => {

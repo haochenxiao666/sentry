@@ -5,18 +5,18 @@ import uniq from 'lodash/uniq';
 import {addLoadingMessage, clearIndicators} from 'app/actionCreators/indicator';
 import {Client} from 'app/api';
 import Checkbox from 'app/components/checkbox';
-import QueryCount from 'app/components/queryCount';
-import ToolbarHeader from 'app/components/toolbarHeader';
 import {t, tct, tn} from 'app/locale';
 import GroupStore from 'app/stores/groupStore';
 import SelectedGroupStore from 'app/stores/selectedGroupStore';
 import space from 'app/styles/space';
 import {GlobalSelection, Group, Organization} from 'app/types';
 import {callIfFunction} from 'app/utils/callIfFunction';
-import theme from 'app/utils/theme';
 import withApi from 'app/utils/withApi';
 
+import {Query} from '../utils';
+
 import ActionSet from './actionSet';
+import Headers from './headers';
 import {BULK_LIMIT, BULK_LIMIT_STR, ConfirmAction} from './utils';
 
 type Props = {
@@ -228,70 +228,6 @@ class IssueListActions extends React.Component<Props, State> {
         return true; // By default, should confirm ...
     }
   };
-
-  renderHeaders() {
-    const {
-      selection,
-      statsPeriod,
-      pageCount,
-      queryCount,
-      queryMaxCount,
-      hasInbox,
-    } = this.props;
-
-    return (
-      <React.Fragment>
-        {hasInbox && (
-          <React.Fragment>
-            <ActionSetPlaceholder>
-              {/* total includes its own space */}
-              {tct('Select [count] of [total]', {
-                count: <React.Fragment>{pageCount}</React.Fragment>,
-                total: (
-                  <QueryCount
-                    hideParens
-                    hideIfEmpty={false}
-                    count={queryCount || 0}
-                    max={queryMaxCount || 1}
-                  />
-                ),
-              })}
-            </ActionSetPlaceholder>
-          </React.Fragment>
-        )}
-        <GraphHeaderWrapper className="hidden-xs hidden-sm">
-          <GraphHeader>
-            <StyledToolbarHeader>{t('Graph:')}</StyledToolbarHeader>
-            <GraphToggle
-              active={statsPeriod === '24h'}
-              onClick={this.handleSelectStatsPeriod.bind(this, '24h')}
-            >
-              {t('24h')}
-            </GraphToggle>
-            <GraphToggle
-              active={statsPeriod === 'auto'}
-              onClick={this.handleSelectStatsPeriod.bind(this, 'auto')}
-            >
-              {selection.datetime.period || t('Custom')}
-            </GraphToggle>
-          </GraphHeader>
-        </GraphHeaderWrapper>
-        <React.Fragment>
-          <EventsOrUsersLabel>{t('Events')}</EventsOrUsersLabel>
-          <EventsOrUsersLabel>{t('Users')}</EventsOrUsersLabel>
-        </React.Fragment>
-        <AssigneesLabel className="hidden-xs hidden-sm">
-          <IssueToolbarHeader>{t('Assignee')}</IssueToolbarHeader>
-        </AssigneesLabel>
-        {hasInbox && (
-          <ActionsLabel>
-            <IssueToolbarHeader>{t('Actions')}</IssueToolbarHeader>
-          </ActionsLabel>
-        )}
-      </React.Fragment>
-    );
-  }
-
   render() {
     const {
       allResultsVisible,
@@ -300,6 +236,10 @@ class IssueListActions extends React.Component<Props, State> {
       orgSlug,
       query,
       realtimeActive,
+      statsPeriod,
+      pageCount,
+      queryMaxCount,
+      selection,
     } = this.props;
 
     const {
@@ -312,14 +252,17 @@ class IssueListActions extends React.Component<Props, State> {
     } = this.state;
 
     const numIssues = issues.size;
+    const istReprocessingQuery = query === Query.REPROCESSING;
 
     return (
       <Sticky>
         <StyledFlex>
-          <ActionsCheckbox>
-            <Checkbox onChange={this.handleSelectAll} checked={pageSelected} />
-          </ActionsCheckbox>
-          {(anySelected || !hasInbox) && (
+          {!istReprocessingQuery && (
+            <ActionsCheckbox>
+              <Checkbox onChange={this.handleSelectAll} checked={pageSelected} />
+            </ActionsCheckbox>
+          )}
+          {(anySelected || !hasInbox) && !istReprocessingQuery && (
             <ActionSet
               orgSlug={orgSlug}
               queryCount={queryCount}
@@ -338,7 +281,18 @@ class IssueListActions extends React.Component<Props, State> {
               onUpdate={this.handleUpdate}
             />
           )}
-          {(!anySelected || !hasInbox) && this.renderHeaders()}
+          {(!anySelected || !hasInbox) && (
+            <Headers
+              onSelectStatsPeriod={this.handleSelectStatsPeriod}
+              selection={selection}
+              statsPeriod={statsPeriod}
+              pageCount={pageCount}
+              queryCount={queryCount}
+              queryMaxCount={queryMaxCount}
+              hasInbox={hasInbox}
+              istReprocessingQuery={istReprocessingQuery}
+            />
+          )}
         </StyledFlex>
         {!allResultsVisible && pageSelected && (
           <SelectAllNotice>
@@ -383,19 +337,6 @@ class IssueListActions extends React.Component<Props, State> {
   }
 }
 
-const IssueToolbarHeader = styled(ToolbarHeader)`
-  animation: 0.3s FadeIn linear forwards;
-
-  @keyframes FadeIn {
-    0% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-    }
-  }
-`;
-
 const Sticky = styled('div')`
   position: sticky;
   z-index: ${p => p.theme.zIndex.header};
@@ -421,90 +362,6 @@ const ActionsCheckbox = styled('div')`
   & input[type='checkbox'] {
     margin: 0;
     display: block;
-  }
-`;
-
-const ActionSetPlaceholder = styled(IssueToolbarHeader)`
-  @media (min-width: 800px) {
-    width: 66.66666666666666%;
-  }
-  @media (min-width: 992px) {
-    width: 50%;
-  }
-
-  flex: 1;
-  margin-left: ${space(1)};
-  margin-right: ${space(1)};
-  overflow: hidden;
-  min-width: 0;
-  white-space: nowrap;
-`;
-
-const GraphHeaderWrapper = styled('div')`
-  width: 160px;
-  margin-left: ${space(2)};
-  margin-right: ${space(2)};
-  animation: 0.25s FadeIn linear forwards;
-
-  @keyframes FadeIn {
-    0% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-    }
-  }
-`;
-
-const GraphHeader = styled('div')`
-  display: flex;
-`;
-
-const StyledToolbarHeader = styled(IssueToolbarHeader)`
-  flex: 1;
-`;
-
-const GraphToggle = styled('a')<{active: boolean}>`
-  font-size: 13px;
-  padding-left: 8px;
-
-  &,
-  &:hover,
-  &:focus,
-  &:active {
-    color: ${p => (p.active ? p.theme.textColor : p.theme.disabled)};
-  }
-`;
-
-const EventsOrUsersLabel = styled(IssueToolbarHeader)`
-  display: inline-grid;
-  align-items: center;
-  justify-content: flex-end;
-  text-align: right;
-  width: 60px;
-  margin: 0 ${space(2)};
-
-  @media (min-width: ${theme.breakpoints[3]}) {
-    width: 80px;
-  }
-`;
-
-const AssigneesLabel = styled('div')`
-  justify-content: flex-end;
-  text-align: right;
-  width: 80px;
-  margin-left: ${space(2)};
-  margin-right: ${space(2)};
-`;
-
-const ActionsLabel = styled('div')`
-  justify-content: flex-end;
-  text-align: right;
-  width: 80px;
-  margin: 0 ${space(2)};
-
-  @media (max-width: ${p => p.theme.breakpoints[3]}) {
-    display: none;
   }
 `;
 

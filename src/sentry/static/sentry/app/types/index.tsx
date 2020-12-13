@@ -1764,7 +1764,9 @@ export type ResolutionStatusDetails = {
   inRelease?: string;
   inNextRelease?: boolean;
   pendingEvents?: number;
+  totalEvents?: number;
 };
+
 export type UpdateResolutionStatus = {
   status: ResolutionStatus;
   statusDetails?: ResolutionStatusDetails;

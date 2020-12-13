@@ -172,6 +172,7 @@ const TabLayoutHeader = styled(Layout.Header)`
 
 const StyledHeaderContent = styled(Layout.HeaderContent)`
   margin-bottom: 0;
+  margin-right: ${space(2)};
 `;
 
 const StyledQueryCount = styled(QueryCount)`
